@@ -1,0 +1,149 @@
+Sub annualReport()
+
+    ' Declare variable
+    Dim i As Long
+    Dim last_row As Long
+    Dim j As Long
+    Dim result_row As Long
+    Dim start_point As Long
+    Dim ticker As String
+    Dim vdate As String
+    Dim vYear As String
+    Dim vopen As Double
+    Dim vclose As Double
+    Dim vvolume As Double
+    Dim annual_open As Double
+    Dim annual_close As Double
+    Dim annual_volume As Double
+    Dim annual_change As Double
+    Dim percent_change As Double
+    Dim sht As Worksheet
+    Set sht = ActiveSheet
+    
+    ' Sort the data
+    With ActiveSheet.Sort
+     .SortFields.Add Key:=Range("A1"), Order:=xlAscending
+     .SortFields.Add Key:=Range("B1"), Order:=xlAscending
+     .SetRange Range("A1", Range("G1").End(xlDown))
+     .Header = xlYes
+     .Apply
+    End With
+    
+    ' Fetch the report Year
+    'vYear = "2016"
+    vYear = ActiveSheet.Name
+    ' Fetch number of the rows on the sheet
+    last_row = Cells(Rows.Count, 1).End(xlUp).Row
+    'Fetch unique list of Tickers on the sheet
+    ActiveSheet.Range(Cells(2, 1), Cells(last_row, 1)).AdvancedFilter Action:=xlFilterCopy, CopyToRange:=ActiveSheet.Range("I1"), Unique:=True
+    'Provide headers
+    Cells(1, 9).Value = "Ticker"
+    Cells(1, 10).Value = "Yearly Change"
+    Cells(1, 11).Value = "Percent Change"
+    Cells(1, 12).Value = "Total Stock Volume"
+    ' Fetch number of unique tickers to look at
+    result_row = Cells(Rows.Count, 9).End(xlUp).Row
+    ' Iterate through the unique tickers
+    For i = 2 To result_row
+        ticker = Cells(i, 9).Value
+        annual_volume = 0
+        annual_close = -9
+        ' Find starting point of the next loop
+        start_point = sht.Range("A:A").Find(What:=ticker).Row
+        
+        ' Iterate through the sheet for results
+        For j = start_point To last_row
+            If ticker = Cells(j, 1) Then
+                            
+                vdate = Str(Cells(j, 2).Value)
+                vopen = Cells(j, 3).Value
+                vclose = Cells(j, 6).Value
+                vvolume = Cells(j, 7).Value
+                ' Fetch opening price
+                If vdate = vYear + "0101" Then
+                    annual_open = vopen
+                End If
+                ' Fetch closing price
+                If vdate = vYear + "1231" Then
+                    annual_close = vclose
+                End If
+                ' Keep summing the daily volume
+                annual_volume = annual_volume + vvolume
+                
+                ' Exit loop early if done. We sorted the data the closing price will be populated at the end
+                If annual_close >= 0 Then
+                    Exit For
+                End If
+                
+            End If
+            
+        Next j
+        annual_change = vclose - vopen
+        Cells(i, 10).Value = annual_change
+        
+        ' Conditional formating for positive or negative change
+        If annual_change > 0 Then
+            Cells(i, 10).Interior.ColorIndex = 4
+        ElseIf annual_change < 0 Then
+            Cells(i, 10).Interior.ColorIndex = 3
+        Else
+            Cells(i, 10).Interior.ColorIndex = xlNone
+        End If
+        ' Conditional block to handle zero values in denominator
+        If vopen = 0 Then
+            percent_change = 0
+        Else
+            percent_change = (annual_change / vopen)
+        End If
+        
+        Cells(i, 11).Value = percent_change
+        Cells(i, 11).NumberFormat = "0.00%" ' Display as percentage
+        Cells(i, 12).Value = annual_volume
+
+    Next i
+     
+    Dim bigPlus As Double
+    Dim bigPlus_ticker As String
+    Dim bigMinus As Double
+    Dim bigMinus_ticker As String
+    Dim hugeVolume As Double
+    Dim hugevolume_ticker As String
+    
+    'Find Greatest Increase
+    For i = 2 To result_row
+        If Cells(i, 11) > bigPlus Then
+        bigPlus = Cells(i, 11).Value
+        bigPlus_ticker = Cells(i, 9).Value
+        End If
+    Next i
+    'Find Greatest Decrease
+    For i = 2 To result_row
+        If Cells(i, 11) < bigMinus Then
+        bigMinus = Cells(i, 11).Value
+        bigMinus_ticker = Cells(i, 9).Value
+        End If
+    Next i
+    'Find Greatest Volume
+    For i = 2 To result_row
+        If Cells(i, 12) > hugeVolume Then
+        hugeVolume = Cells(i, 12).Value
+        hugevolume_ticker = Cells(i, 9).Value
+        End If
+    Next i
+        
+    Cells(1, 15).Value = "Ticker"
+    Cells(1, 16).Value = "Value"
+    Cells(2, 14).Value = "Greatest % Increase"
+    Cells(2, 15).Value = bigPlus_ticker
+    Cells(2, 16).Value = bigPlus
+    Cells(2, 16).NumberFormat = "0.00%"
+    Cells(3, 14).Value = "Greatest % Decrease"
+    Cells(3, 15).Value = bigMinus_ticker
+    Cells(3, 16).Value = bigMinus
+    Cells(3, 16).NumberFormat = "0.00%"
+    Cells(4, 14).Value = "Greatest Total Volume"
+    Cells(4, 15).Value = hugevolume_ticker
+    Cells(4, 16).Value = hugeVolume
+    
+End Sub
+
